@@ -7,11 +7,11 @@ from app import db, Prediction, MLModel
 @click.command()
 def run_predictions():
     ml_models = MLModel.query.all()
-    r = requests.get(f"https://www.bitstamp.net/api/v2/ohlc/btcusd/?step=3600&limit=169")
-    json_data = r.json()
-    ohlc = json_data["data"]["ohlc"]
-    last_timestamp = int(ohlc[-1]["timestamp"])
     for ml_model in ml_models:
+        r = requests.get(f"https://www.bitstamp.net/api/v2/ohlc/btcusd/?step=3600&limit={ml_model.look_back+1}")
+        json_data = r.json()
+        ohlc = json_data["data"]["ohlc"]
+        last_timestamp = int(ohlc[-1]["timestamp"])
         model = tf.keras.models.load_model(ml_model.model_path)
         timestamp = last_timestamp + 3600
         pred = model.predict([[float(data["close"]) for data in ohlc[-ml_model.look_back-1:-1]]])

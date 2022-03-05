@@ -4,9 +4,8 @@ from flask import Flask, render_template, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_caching import Cache
 from flask_migrate import Migrate
+from sqlalchemy import desc
 import tensorflow as tf
-
-os.environ['SQL_ALCHEMY_DATABASE_URI'] = 'mariadb+mariadbconnector://bh_live_predict:h3llo_crk$po1@127.0.0.1:3306/btclive'
 
 config = {
     "DEBUG": True,          # some Flask specific configs
@@ -71,7 +70,7 @@ def api_prediction(ml_id=1):
         last_timestamp = int(ohlc[-1]["timestamp"])
         timestamp = last_timestamp + 3600
         historical_predictions = Prediction.query.filter_by(model_id=ml_model.id)\
-            .order_by(Prediction.timestamp)\
+            .order_by(desc(Prediction.timestamp))\
             .limit(48).all()
         model = tf.keras.models.load_model(ml_model.model_path)
         pred = model.predict([[float(data["close"]) for data in ohlc[:-1]]])
@@ -82,7 +81,8 @@ def api_prediction(ml_id=1):
                 'x': timestamp
             })
             timestamp += 3600
-        data = [hp.to_dict() for hp in historical_predictions] + data
+        data = [hp.to_dict() for hp in historical_predictions] + data[1:]
+        data = sorted(data, key=lambda r: r['x'])
     return jsonify({'data': data})
 
 
